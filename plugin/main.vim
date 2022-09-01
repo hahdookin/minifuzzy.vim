@@ -165,7 +165,7 @@ const fuzzy_find_default_options = {
     exec_cb: EchoArg,
     format_cb: DefaultFormatArg,
 }
-def InitFuzzyFind(values: list<string>, options: dict<any>)
+def g:InitFuzzyFind(values: list<string>, options: dict<any>)
     # Skip on empty values, may be an issue with async
     if len(values) == 0
         return
@@ -199,31 +199,31 @@ enddef
 
 
 command! FuzzyGitBranch {
-    InitFuzzyFind(CommandOutputList("git branch --format='%(refname:short)'"), {
+    g:InitFuzzyFind(CommandOutputList("git branch --format='%(refname:short)'"), {
         exec_cb: GitCheckoutArg })
 }
 
 command! FuzzyFind {
-    InitFuzzyFind(CommandOutputList(BuildFindCommand()), {
+    g:InitFuzzyFind(CommandOutputList(BuildFindCommand()), {
         exec_cb: EditArg })
 }
 nnoremap <leader>ff <Cmd>FuzzyFind<CR>
 nnoremap <C-p> <Cmd>FuzzyFind<CR>
 
 command! FuzzyBuffers {
-    InitFuzzyFind(BuffersList(), {
+    g:InitFuzzyFind(BuffersList(), {
         exec_cb: EditArg })
 }
 nnoremap <leader>fb <Cmd>FuzzyBuffers<CR>
 
 command! FuzzyMRU {
-    InitFuzzyFind(GetMRU(10), {
+    g:InitFuzzyFind(GetMRU(10), {
         exec_cb: EditArg })
 }
 nnoremap <leader>fm <Cmd>FuzzyMRU<CR>
 
 command! FuzzyLines {
-    InitFuzzyFind(range(1, line('$'))->map((_, v) => string(v)), {
+    g:InitFuzzyFind(range(1, line('$'))->map((_, v) => string(v)), {
         exec_cb: GotoLineNumberArg, 
         format_cb: GetBufLineByNumber })
 }

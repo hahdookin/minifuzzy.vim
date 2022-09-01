@@ -1,0 +1,154 @@
+*minifuzzy.txt* Simple Vim9 fuzzy finder wrapper
+
+		       _       _  __                     ~
+	     _ __ ___ (_)_ __ (_)/ _|_   _ _________   _ ~
+	    | '_ ` _ \| | '_ \| | |_| | | |_  /_  / | | |~
+	    | | | | | | | | | | |  _| |_| |/ / / /| |_| |~
+	    |_| |_| |_|_|_| |_|_|_|  \__,_/___/___|\__, |~
+						   |___/ ~
+
+		  Simple Vim9 fuzzy finder wrapper
+	  Designed to be minimal, powerful, and extensible
+
+====================================================================
+CONTENTS                                           *MinifuzzyContents*
+
+    1. Intro ................ |Minifuzzy|
+    2. Usage ................ |MinifuzzyUsage|
+        2.1. Quickstart ..... |MinifuzzyQuickstart|
+        2.2. Mappings ....... |MinifuzzyMappings|
+        2.3. Commands ....... |MinifuzzyCommands|
+    3. Custom Prompts ....... |MinifuzzyCustom|
+    4. About ................ |MinifuzzyAbout|
+
+====================================================================
+1. Intro                                                   *Minifuzzy*
+
+minifuzzy.vim is a simple wrapper for Vim's fuzzy finder written in
+Vim9 script that supports custom hooks for writing your own fuzzy
+finding mechanism.
+
+====================================================================
+2. Usage                                              *MinifuzzyUsage*
+
+--------------------------------------------------------------------
+2.1. Quickstart                                  *MinifuzzyQuickstart*
+
+To begin using minifuzzy.vim, press <leader>ff to fuzzy find in the
+current working directory. minifuzzy.vim will open a popup window
+for fuzzy finding. Press <ESC> to close this window.
+
+Begin typing to narrow the selection down to what you want. Your
+current selection will be highlighted. Pressing <CR> will select
+the currently highlighted file and open it.
+
+Pressing <C-p> will clear the search query but not close the window.
+
+NOTE: <BS> currently does not work due to the current implementation
+of popup windows in Vim. Use <C-p> instead.
+
+--------------------------------------------------------------------
+2.2. Mappings                                      *MinifuzzyMappings*
+
+The following mappings can be used to initiate a fuzzy find:
+
+    <leader>ff ............. Files in current working directory
+    <leader>fb ............. Buffers
+    <leader>fm ............. Most recently used files
+    <leader>fl ............. Lines in the current buffer
+
+While the minifuzzy.vim window is open:
+
+    <CR> ............. Select the currently highlighted selection
+    <C-p> ............ Clear the search query
+    <ESC> ............ Close the minifuzzy.vim window
+
+--------------------------------------------------------------------
+2.3. Commands                                      *MinifuzzyCommands*
+
+|:MinifuzzyFind|
+    Fuzzy find through files using the Unix |find| command in the
+    current working directory.
+    Mapped to: <leader>ff
+
+|:MinifuzzyBuffers|
+    Fuzzy find through buffers currently listed. Excludes the
+    current buffer from the list. If there is only one buffer, this
+    does nothing.
+    Mapped to: <leader>fb
+
+|:MinifuzzyMRU|
+    Fuzzy find through the most recently used files. Uses
+    |v:oldfiles| as values, ignoring some directories such as
+    vim helpfiles.
+    Mapped to: <leader>fm
+
+|:MinifuzzyLines|
+    Fuzzy find through the lines in the current buffer. Jump to the
+    line number of the current selection.
+    Mapped to: <leader>fl
+
+|:MinifuzzyGitBranch|
+    Fuzzy find through Git branches and checkout the selection. Only
+    available if |vim-fugitive| is installed.
+
+====================================================================
+3. Custom Prompts 				     *MinifuzzyCustom*
+
+minifuzzy.vim is a general-purpose wrapper for Vim's builtin fuzzy
+finding capabilities and is meant to be extended easily.
+
+Fuzzy finding is initiated with a call to |g:InitFuzzyFind()| which
+has the following signature in Vim9 script:
+>
+    def g:InitFuzzyFind(values: list<string>, options: dict<any>)
+<
+Where |values| are the possible values to search against and |options|
+can contain the following keys:
+>
+    format_cb: func(string): string
+    exec_cb:   func(string): string
+<
+|format_cb| gets called on each value in |values|  and displays the
+return value in the miniterm.vim window.
+
+NOTE: The search query will be matched against format_cb(value),
+not value. By default, format_cb(value) == value.
+
+|exec_cb| gets called when <CR> is pressed, with the currently
+selected value passed as the only argument.
+
+Example:                                     *MinifuzzyCustomExamples*
+>
+    com! MyCustomFuzzy call InitFuzzyFind(['a', 'b'], {
+	\ 'exec_cb': {s -> execute('edit ' . s)} })
+<
+This command will call |:edit| on the selected value from ['a', 'b'].
+>
+    let bufnrs = getbufinfo()->map('string(v:val.bufnr)')
+    com! FuzBufs call InitFuzzyFind(bufnrs, {
+	\ 'format_cb': {s -> bufname(s)} })
+<
+This command collects all buffer numbers and creates a minfuzzy.vim
+window that matches against the buffers' names. When <CR> is
+pressed, the buffer name that was selected will have its buffer
+number passed to |:echo|.
+
+NOTE: By default, |exec_cb| will |:echo| its argument.
+
+====================================================================
+4. About                                              *MinifuzzyAbout*
+
+Christopher Pane, a.k.a. hahdookin, is the author of this plugin. He
+can be reached at:
+
+    * Email ............. ChrisPaneCS@gmail.com
+    * Website ........... https://chrispane.dev
+
+This plugin is part of a plugin suite designed to achieve the
+functionality of modern IDEs without external dependencies or bloat.
+Plugins in this suite are meant to be small, extensible, and
+powerful.
+
+--------------------------------------------------------------------
+ vim:tw=68:ts=8:ft=help:noet:nospell
