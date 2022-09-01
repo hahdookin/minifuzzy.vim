@@ -15,7 +15,7 @@ var search_string = ""
 var output_list = []
 var use_arg_command = ""
 var max_option_length = 0
-var On_enter_callback: func(string)
+var On_enter_callback: func(string): string
 
 
 def FilterCallback(winid: number, key: string): bool
@@ -122,7 +122,7 @@ enddef
 
 # Initialize a fuzzy find prompt using "values" as options and "Exec_callback"
 # as code to run with the option passed as the only argument
-def InitFuzzyFind(values: list<string>, Exec_callback: func(string))
+def InitFuzzyFind(values: list<string>, Exec_callback: func(string): string)
     # Skip on empty values, may be an issue with async
     if len(values) == 0
         return
@@ -152,15 +152,14 @@ def InitFuzzyFind(values: list<string>, Exec_callback: func(string))
     prop_add(2, 1, { length: max_option_length, type: 'match', bufnr: bufnr })
 enddef
 
-const EditArg = (arg: string) =>  { 
-    execute "edit " .. arg
-}
-const SplitArg = (arg: string) =>  { 
-    execute "split " .. arg
-}
-const VsplitArg = (arg: string) =>  { 
-    execute "vsplit " .. arg
-}
+const EditArg = (arg) =>  execute("edit " .. arg)
+const SplitArg = (arg) =>  execute("split " .. arg)
+const VsplitArg = (arg) =>  execute("vsplit " .. arg )
+const EchoArg = (arg) =>  execute("echo " .. string(arg), "")
+const GitCheckoutArg = (arg) => execute("Git checkout " .. arg)
+
+command! FuzzyGitBranch InitFuzzyFind(CommandOutputList("git branch --format='%(refname:short)'"), GitCheckoutArg)
+
 command! FuzzyFind InitFuzzyFind(CommandOutputList(BuildFindCommand()), EditArg)
 nnoremap <leader>ff <Cmd>FuzzyFind<CR>
 nnoremap <C-p> <Cmd>FuzzyFind<CR>
@@ -171,5 +170,5 @@ nnoremap <leader>fb <Cmd>FuzzyBuffers<CR>
 command! FuzzyMRU InitFuzzyFind(GetMRU(10), EditArg)
 nnoremap <leader>fm <Cmd>FuzzyMRU<CR>
 
-command! FuzzyLines InitFuzzyFind(CommandOutputList("cat " .. expand("%")), EditArg)
+command! FuzzyLines InitFuzzyFind(CommandOutputList("cat " .. expand("%")), EchoArg)
 nnoremap <leader>fl <Cmd>FuzzyLines<CR>
