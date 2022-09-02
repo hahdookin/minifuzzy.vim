@@ -10,7 +10,7 @@ const GotoLineNumberArg = (arg: string): string => execute(":" .. arg)
 
 # Format callbacks
 const DefaultFormatArg = (arg: string): string => arg
-const GetBufLineByNumber = (arg: string): string => len(getbufline(bufname(), str2nr(arg))) > 0 ? getbufline(bufname(), str2nr(arg))[0] : ""
+const GetBufLineByNumber = (arg: string): string => repeat(" ", len(string(line('$'))) - len(arg)) .. arg .. " " .. (len(getbufline(bufname(), str2nr(arg))) > 0 ? getbufline(bufname(), str2nr(arg))[0] : "")
 
 
 # Builds a Unix find command that ignores directories present in the
