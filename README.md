@@ -1,6 +1,8 @@
 # minifuzzy.vim :mag_right:
 - Simple Vim9 fuzzy finder wrapper
 
+![minifuzzy screencast](images/minifuzzy.gif)
+
 ## :hammer: Installation
 :warning: Only supported for vim >= 8.2, not nvim
 
