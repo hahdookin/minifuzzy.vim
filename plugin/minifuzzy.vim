@@ -49,7 +49,7 @@ def FilterCallback(winid: number, key: string): bool
     # The search_string gets matched against Format_callback(output_list[i]),
     # not output_list[i]. However, once a value is selected, output_list[i] is
     # passed to the On_enter_callback as the argument.
-    # For example, FuzzyLines sets output_list to the range(1, line("$")), but
+    # For example, MinifuzzyLines sets output_list to the range(1, line("$")), but
     # the Format_callback is set to return the line contents at the line
     # number.
 
@@ -198,33 +198,31 @@ def g:InitFuzzyFind(values: list<string>, options: dict<any>)
 enddef
 
 
-command! FuzzyGitBranch {
-    g:InitFuzzyFind(CommandOutputList("git branch --format='%(refname:short)'"), {
-        exec_cb: GitCheckoutArg })
-}
-
-command! FuzzyFind {
+command! MinifuzzyFind {
     g:InitFuzzyFind(CommandOutputList(BuildFindCommand()), {
         exec_cb: EditArg })
 }
-nnoremap <leader>ff <Cmd>FuzzyFind<CR>
-nnoremap <C-p> <Cmd>FuzzyFind<CR>
-
-command! FuzzyBuffers {
-    g:InitFuzzyFind(BuffersList(), {
-        exec_cb: EditArg })
+command! MinifuzzyBuffers {
+    g:InitFuzzyFind(range(1, bufnr('$'))->filter((_, val) => buflisted(val) && bufnr() != val)->map((_, v) => string(v)), {
+        format_cb: (s) => bufname(str2nr(s)), 
+        exec_cb: (s) => execute("buffer " .. s) })
 }
-nnoremap <leader>fb <Cmd>FuzzyBuffers<CR>
-
-command! FuzzyMRU {
+command! MinifuzzyMRU {
     g:InitFuzzyFind(GetMRU(10), {
         exec_cb: EditArg })
 }
-nnoremap <leader>fm <Cmd>FuzzyMRU<CR>
-
-command! FuzzyLines {
+command! MinifuzzyLines {
     g:InitFuzzyFind(range(1, line('$'))->map((_, v) => string(v)), {
         exec_cb: GotoLineNumberArg, 
         format_cb: GetBufLineByNumber })
 }
-nnoremap <leader>fl <Cmd>FuzzyLines<CR>
+command! MinifuzzyGitBranch {
+    g:InitFuzzyFind(CommandOutputList("git branch --format='%(refname:short)'"), {
+        exec_cb: GitCheckoutArg })
+}
+
+nnoremap <leader>ff <Cmd>MinifuzzyFind<CR>
+nnoremap <C-p> <Cmd>MinifuzzyFind<CR>
+nnoremap <leader>fb <Cmd>MinifuzzyBuffers<CR>
+nnoremap <leader>fm <Cmd>MinifuzzyMRU<CR>
+nnoremap <leader>fl <Cmd>MinifuzzyLines<CR>
