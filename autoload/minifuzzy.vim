@@ -7,6 +7,8 @@ const VsplitArg = (arg: string): string =>  execute("vsplit " .. arg )
 const EchoArg = (arg: string): string =>  execute("echo " .. string(arg), "")
 const GitCheckoutArg = (arg: string): string => execute("Git checkout " .. arg)
 const GotoLineNumberArg = (arg: string): string => execute(":" .. arg)
+const SplitLineNumberArg = (arg: string): string => execute("sp | :" .. arg .. " | norm zz")
+const VsplitLineNumberArg = (arg: string): string => execute("vs | :" .. arg .. " | norm zz")
 
 # Format callbacks
 const DefaultFormatArg = (arg: string): string => arg
@@ -28,6 +30,8 @@ var output_list = []
 var use_arg_command = ""
 var max_option_length = 0
 var On_enter_callback: func(string): string
+var On_ctrl_x_callback: func(string): string
+var On_ctrl_v_callback: func(string): string
 var Format_callback: func(string): string
 var selection_index = 0
 
@@ -36,7 +40,16 @@ const bs_cc_str = "12825396" # Backspace
 const up_cc_str = "128107117" # Arrow key up
 const down_cc_str = "128107100" # Arrow key down
 
+# Important character codes
+const char_code = {
+    ctrl_p: 16,
+    ctrl_v: 22,
+    ctrl_x: 24,
+    enter: 13,
+}
+
 def FilterCallback(winid: number, key: string): bool
+    const key_code = char2nr(key)
     const cc_str = key->mapnew((_, v) => string(char2nr(v)))
     if cc_str == bs_cc_str # <BS> is constantly fed, seems like a bug
         return false
@@ -88,14 +101,23 @@ def FilterCallback(winid: number, key: string): bool
     # the Format_callback is set to return the line contents at the line
     # number.
 
-    # <CR>: Select best match and exit close window
-    if char2nr(key) == 13 # <Enter>
+
+
+    # Select best match and exit close window
+    # <CR>, <C-V>, <C-X>
+    if key_code == char_code.enter || key_code == char_code.ctrl_x || key_code == char_code.ctrl_v # <Enter>
         # No need to update display_matches, nothing will be displayed after
         # <CR> is pressed.
         UpdateMatches(search_string)
         popup_close(winid)
         if len(matches) > 0
-            On_enter_callback(matches[selection_index])
+            if key_code == char_code.ctrl_x
+                On_ctrl_x_callback(matches[selection_index])
+            elseif key_code == char_code.ctrl_v
+                On_ctrl_v_callback(matches[selection_index])
+            else
+                On_enter_callback(matches[selection_index])
+            endif
         endif
         return 1
     endif
@@ -121,7 +143,7 @@ def FilterCallback(winid: number, key: string): bool
         endif
     else
         # For everything else, do the stuff and then update the matches list
-        if char2nr(key) == 16 # <C-p>
+        if char2nr(key) == char_code.ctrl_p # <C-p>
             search_string = ""
         else # any other key
             search_string ..= key
@@ -158,18 +180,6 @@ def FilterCallback(winid: number, key: string): bool
     return true
 enddef
 
-def CommandOutputList(command: string): list<string>
-    return split(system(command), "\n")
-enddef
-
-# def CommandOutputList_Async(command: string)
-#     job_start(command, {
-#         out_cb: (ch: channel, msg: string) => {
-#             output_list->add(msg)
-#         }
-#     })
-# enddef
-
 # def BuffersList(): list<any>
 def BuffersList(): list<string>
     # return range(1, bufnr('$'))->filter((_, val) => buflisted(val))->map((_, v) => ({ nr: v, name: bufname(v) }))
@@ -199,13 +209,12 @@ enddef
 
 # Initialize a fuzzy find prompt.
 # - "values" -> List of values to search against
-# - "Exec_callback" -> Code to run when a value is selected. The argument is
-#   a string which was the accepted value
-# - "Format_callback" -> Code to run before a value is displayed in the list.
-#   The argument is the value in the list "values"
 const fuzzy_find_default_options = {
-    exec_cb: EchoArg,
-    format_cb: DefaultFormatArg,
+    exec_cb: EditArg,            # <CR> callback, exec_cb(val) is executed
+    ctrl_x_cb: SplitArg,         # <C-X> Callback, ctrl_x_cb(val) is executed
+    ctrl_v_cb: VsplitArg,        # <C-V> Callback, ctrl_v_cb(val) is executed
+    format_cb: DefaultFormatArg, # format_cb(val) is what gets displayed in the prompt
+    title: 'Minifuzzy'           # Title for the popup window
 }
 def g:InitFuzzyFind(values: list<string>, options: dict<any>)
     # Skip on empty values, may be an issue with async
@@ -213,11 +222,16 @@ def g:InitFuzzyFind(values: list<string>, options: dict<any>)
         return
     endif
 
+    # Object.assign(defaults, options)
+    const opts = extendnew(fuzzy_find_default_options, options)
+
     # Set globals...
     search_string = ""
     output_list = values
-    On_enter_callback = options->has_key("exec_cb") ? options.exec_cb : fuzzy_find_default_options.exec_cb
-    Format_callback = options->has_key("format_cb") ? options.format_cb : fuzzy_find_default_options.format_cb
+    On_enter_callback = opts.exec_cb
+    On_ctrl_x_callback = opts.ctrl_x_cb
+    On_ctrl_v_callback = opts.ctrl_v_cb
+    Format_callback = opts.format_cb
     max_option_length = max(output_list->mapnew((_, v) => len(Format_callback(v))))
     selection_index = 0
 
@@ -229,9 +243,12 @@ def g:InitFuzzyFind(values: list<string>, options: dict<any>)
         minwidth: max_option_length,
         maxheight: 20,
         border: [],
-        title: ' ' .. GetCurrentDirectory() .. '/ '
+        # title: ' ' .. GetCurrentDirectory() .. '/ '
+        title: ' ' .. opts.title .. ' ',
     }
     var popup_id = popup_create([""] + output_list->mapnew((_, v) => Format_callback(v)), popup_opts)
+
+    # Add highlight line text prop
     var bufnr = winbufnr(popup_id)
     prop_type_add('match', {
         bufnr: bufnr,
@@ -242,27 +259,30 @@ enddef
 
 # Command functions
 export def Find()
-    g:InitFuzzyFind(CommandOutputList(BuildFindCommand()), { exec_cb: EditArg })
+    g:InitFuzzyFind(systemlist(BuildFindCommand()), { title: GetCurrentDirectory() .. '/' })
 enddef
 
 export def Buffers()
     g:InitFuzzyFind(range(1, bufnr('$'))->filter((_, val) => buflisted(val) && bufnr() != val)->map((_, v) => string(v)), {
         format_cb: (s) => bufname(str2nr(s)), 
-        exec_cb: (s) => execute("buffer " .. s) })
+        exec_cb: (s) => execute("buffer " .. s),
+        title: 'Buffers' })
 enddef
 
 export def MRU()
-    g:InitFuzzyFind(GetMRU(10), {
-        exec_cb: EditArg })
+    g:InitFuzzyFind(GetMRU(10), { title: 'MRU' })
 enddef
 
 export def Lines()
     g:InitFuzzyFind(range(1, line('$'))->map((_, v) => string(v)), {
         exec_cb: GotoLineNumberArg, 
-        format_cb: GetBufLineByNumber })
+        ctrl_x_cb: SplitLineNumberArg,
+        ctrl_v_cb: VsplitLineNumberArg,
+        format_cb: GetBufLineByNumber,
+        title: 'Lines: ' .. expand("%") })
 enddef
 
 export def GitBranch()
-    g:InitFuzzyFind(CommandOutputList("git branch --format='%(refname:short)'"), {
+    g:InitFuzzyFind(systemlist("git branch --format='%(refname:short)'"), {
         exec_cb: GitCheckoutArg })
 enddef
