@@ -262,6 +262,10 @@ export def Find()
     g:InitFuzzyFind(systemlist(BuildFindCommand()), { title: GetCurrentDirectory() .. '/' })
 enddef
 
+export def GitFiles()
+    g:InitFuzzyFind(systemlist('git ls-files'), { title: "GIT: " .. GetCurrentDirectory() .. '/' })
+enddef
+
 export def Buffers()
     g:InitFuzzyFind(range(1, bufnr('$'))->filter((_, val) => buflisted(val) && bufnr() != val)->map((_, v) => string(v)), {
         format_cb: (s) => bufname(str2nr(s)), 
