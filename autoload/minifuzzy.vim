@@ -270,6 +270,8 @@ export def Buffers()
     g:InitFuzzyFind(range(1, bufnr('$'))->filter((_, val) => buflisted(val) && bufnr() != val)->map((_, v) => string(v)), {
         format_cb: (s) => bufname(str2nr(s)), 
         exec_cb: (s) => execute("buffer " .. s),
+        ctrl_x_cb: (s) => execute("sp | buffer " .. s),
+        ctrl_v_cb: (s) => execute("vs | buffer " .. s),
         title: 'Buffers' })
 enddef
 
