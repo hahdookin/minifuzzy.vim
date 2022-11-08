@@ -49,6 +49,7 @@ const char_code = {
 }
 
 def FilterCallback(winid: number, key: string): bool
+    var bs_pressed = len(key) == 3 && key[1] == 'k' && key[2] == 'b'
     const key_code = char2nr(key)
     const cc_str = key->mapnew((_, v) => string(char2nr(v)))
     if cc_str == bs_cc_str # <BS> is constantly fed, seems like a bug
@@ -143,8 +144,10 @@ def FilterCallback(winid: number, key: string): bool
         endif
     else
         # For everything else, do the stuff and then update the matches list
-        if char2nr(key) == char_code.ctrl_p # <C-p>
+        if char2nr(key) == char_code.ctrl_p # <C-p> Clear whole line
             search_string = ""
+        elseif bs_pressed # <BS> Remove last letter
+            search_string = substitute(search_string, ".$", "", "")
         else # any other key
             search_string ..= key
         endif
