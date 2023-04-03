@@ -20,7 +20,7 @@ const GetBufLineByNumber = (arg: string): string => repeat(" ", len(string(line(
 const ignore_directories = [ 'node_modules', '.git' ]
 def BuildFindCommand(): string
     if (executable('git') && isdirectory('./.git'))
-        return "git ls-files"
+        return "git ls-files -co --exclude-standard"
     endif
     var cmd_exprs = ignore_directories->mapnew((_, dir) => '-type d -name ' .. dir .. ' -prune')
     cmd_exprs->add('-type f -print')
