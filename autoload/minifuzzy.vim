@@ -298,3 +298,24 @@ export def GitBranch()
     g:InitFuzzyFind(systemlist("git branch --format='%(refname:short)'"), {
         exec_cb: GitCheckoutArg })
 enddef
+
+g:old_cmd_line = ''
+export def Command()
+    var Exec_cb = (s: string): string => {
+        var list = g:old_cmd_line->split(' ')
+        if list->len() == 0
+            list = ['']
+        endif
+        var last_index = g:old_cmd_line->len() - 1
+        if g:old_cmd_line[last_index] == ' '
+            list->add(s)
+        else
+            list[-1] = s
+        endif
+        echomsg $"[{g:old_cmd_line}]"
+        var final_cmd = list->join(" ")
+        feedkeys($":{final_cmd}")
+        return ''
+    }
+    g:InitFuzzyFind(getcompletion(g:old_cmd_line, 'cmdline'), { exec_cb: Exec_cb })
+enddef
