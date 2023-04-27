@@ -19,6 +19,6 @@ nnoremap <leader>fb <Cmd>MinifuzzyBuffers<CR>
 nnoremap <leader>fm <Cmd>MinifuzzyMRU<CR>
 nnoremap <leader>fl <Cmd>MinifuzzyLines<CR>
 nnoremap <leader>fg <Cmd>MinifuzzyGitFiles<CR>
-nnoremap <leader>fc <Cmd>MinifuzzyCommand<CR>
 
+cnoremap <silent> <C-b>   <C-\>eg:StoreOldCmd()<CR><ESC>:MinifuzzyCommand<CR>
 cnoremap <silent> <C-Tab> <C-\>eg:StoreOldCmd()<CR><ESC>:MinifuzzyCommand<CR>
