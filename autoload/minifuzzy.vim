@@ -220,7 +220,8 @@ const fuzzy_find_default_options = {
     ctrl_x_cb: SplitArg,         # <C-X> Callback, ctrl_x_cb(val) is executed
     ctrl_v_cb: VsplitArg,        # <C-V> Callback, ctrl_v_cb(val) is executed
     format_cb: DefaultFormatArg, # format_cb(val) is what gets displayed in the prompt
-    title: 'Minifuzzy'           # Title for the popup window
+    title: 'Minifuzzy',          # Title for the popup window
+    filetype: '',                # If non-empty, use filetype syntax highlight in window
 }
 def g:InitFuzzyFind(values: list<string>, options: dict<any>)
     # Skip on empty values, may be an issue with async
@@ -254,8 +255,13 @@ def g:InitFuzzyFind(values: list<string>, options: dict<any>)
     }
     var popup_id = popup_create([""] + output_list->mapnew((_, v) => Format_callback(v)), popup_opts)
 
-    # Add highlight line text prop
+    # Add syntax highlighting if requested
     var bufnr = winbufnr(popup_id)
+    if opts.filetype->len() > 0
+        setbufvar(bufnr, '&filetype', opts.filetype)
+    endif
+
+    # Add highlight line text prop
     prop_type_add('match', {
         bufnr: bufnr,
         highlight: 'Search',
@@ -291,6 +297,7 @@ export def Lines()
         ctrl_x_cb: SplitLineNumberArg,
         ctrl_v_cb: VsplitLineNumberArg,
         format_cb: GetBufLineByNumber,
+        filetype: &filetype,
         title: 'Lines: ' .. expand("%") })
 enddef
 
@@ -317,5 +324,5 @@ export def Command()
         feedkeys($":{final_cmd}")
         return ''
     }
-    g:InitFuzzyFind(getcompletion(g:old_cmd_line, 'cmdline'), { exec_cb: Exec_cb })
+    g:InitFuzzyFind(getcompletion(g:old_cmd_line, 'cmdline'), { exec_cb: Exec_cb, filetype: 'vim' })
 enddef
