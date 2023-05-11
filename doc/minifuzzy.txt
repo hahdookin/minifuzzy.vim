@@ -63,6 +63,21 @@ While the minifuzzy.vim window is open:
     <C-p> ............ Clear the search query
     <ESC> ............ Close the minifuzzy.vim window
 
+If in command mode and either <C-Tab> or <C-b> is pressed, a fuzzy
+finder prompt will be created to complete (and replace) the current
+typed token.
+
+    :col<C-Tab>
+
+This will create a fuzzy finder prompt with the values that would
+be expected when trying to autocomplete: |colder| and |colorscheme|.
+Upon selecting a command with <CR> (for example 'colorscheme'), the
+new command line will look like this:
+
+    :colorscheme|
+
+The bar indicates where the cursor will be placed.
+
 --------------------------------------------------------------------
 2.3. Commands                                      *MinifuzzyCommands*
 
@@ -112,6 +127,8 @@ can contain the following keys:
     exec_cb:   func(string): string
     ctrl_x_cb: func(string): string
     ctrl_v_cb: func(string): string
+    title:     string
+    filetype:  string
 <
 |format_cb| gets called on each value in |values| and displays the
 return value in the miniterm.vim window.
@@ -123,6 +140,10 @@ not value. By default, format_cb(value) == value.
 selected value passed as the only argument. Two additional execution 
 callbacks |ctrl_x_cb| and |ctrl_v_cb| can be called when <C-x> or 
 <C-v> are pressed, respectively.
+
+|title| will be used as the title for the popup window. If |filetype|
+if provided and not an empty string, the |filetype| will be applied
+to the popup window, to allow syntax highlighting and such.
 
 Example:                                     *MinifuzzyCustomExamples*
 >
@@ -141,6 +162,18 @@ window that matches against the buffers' names. When <CR> is
 pressed, the buffer name that was selected will have its buffer
 number passed to |:echo|.
 
+Here is an example using |vim9|.
+>
+    com! FuzzyColors {
+	InitFuzzyFind(getcompletion('', 'color'), {
+	    exec_cb: (cs) => execute($'colorscheme {cs}')
+	})
+    }
+<
+This command uses the |getcompletion| function to get a list of the
+colorschemes available. When <CR> is pressed, the selected 
+colorscheme is passed as the argument to the |:colorscheme| command.
+
 ====================================================================
 4. About                                              *MinifuzzyAbout*
 
@@ -149,11 +182,9 @@ can be reached at:
 
     * Email ............. ChrisPaneCS@gmail.com
     * Website ........... https://chrispane.dev
+    * Blog .............. https://chrispane.dev/blog
 
-This plugin is part of a plugin suite designed to achieve the
-functionality of modern IDEs without external dependencies or bloat.
-Plugins in this suite are meant to be small, extensible, and
-powerful.
+If you have any issues, feel free to reach out.
 
 --------------------------------------------------------------------
  vim:tw=68:ts=8:ft=help:noet:nospell
