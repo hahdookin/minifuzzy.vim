@@ -2,12 +2,12 @@ vim9script
 
 import autoload "minifuzzy.vim"
 
-command! -nargs=? MinifuzzyFind     minifuzzy.Find(<q-args>)
-command! MinifuzzyBuffers           minifuzzy.Buffers()
-command! MinifuzzyMRU               minifuzzy.MRU()
-command! MinifuzzyLines             minifuzzy.Lines()
-command! MinifuzzyGitFiles          minifuzzy.GitFiles()
-command! MinifuzzyCommand           minifuzzy.Command()
+command! -nargs=* -complete=dir MinifuzzyFind     minifuzzy.Find(<q-args>)
+command! MinifuzzyBuffers                         minifuzzy.Buffers()
+command! MinifuzzyMRU                             minifuzzy.MRU()
+command! MinifuzzyLines                           minifuzzy.Lines()
+command! MinifuzzyGitFiles                        minifuzzy.GitFiles()
+command! MinifuzzyCommand                         minifuzzy.Command()
 def g:StoreOldCmd(): string
     g:old_cmd_line = getcmdline()
     return ''

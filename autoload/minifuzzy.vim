@@ -24,7 +24,7 @@ def BuildFindCommand(directory: string): string
     endif
     var cmd_exprs = ignore_directories->mapnew((_, dir) => '-type d -name ' .. dir .. ' -prune')
     cmd_exprs->add('-type f -print')
-    return $'find {directory} {cmd_exprs->join(' -o ')}'
+    return $"find '{directory}' {cmd_exprs->join(' -o ')}"
 enddef
 
 # Globals used by filter
