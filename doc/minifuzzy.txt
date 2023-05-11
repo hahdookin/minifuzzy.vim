@@ -66,9 +66,10 @@ While the minifuzzy.vim window is open:
 --------------------------------------------------------------------
 2.3. Commands                                      *MinifuzzyCommands*
 
-|:MinifuzzyFind|
+|:MinifuzzyFind| <directory>
     Fuzzy find through files using the Unix |find| command in the
-    current working directory.
+    provided directory or in the current working directory if 
+    excluded.
     Mapped to: <leader>ff or <C-p>
 
 |:MinifuzzyBuffers|

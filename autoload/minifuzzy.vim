@@ -18,13 +18,13 @@ const GetBufLineByNumber = (arg: string): string => repeat(" ", len(string(line(
 # Builds a Unix find command that ignores directories present in the
 # "ignore_directories" list
 const ignore_directories = [ 'node_modules', '.git' ]
-def BuildFindCommand(): string
+def BuildFindCommand(directory: string): string
     if (executable('git') && isdirectory('./.git'))
         return "git ls-files -co --exclude-standard"
     endif
     var cmd_exprs = ignore_directories->mapnew((_, dir) => '-type d -name ' .. dir .. ' -prune')
     cmd_exprs->add('-type f -print')
-    return 'find . ' .. cmd_exprs->join(' -o ')
+    return $'find {directory} {cmd_exprs->join(' -o ')}'
 enddef
 
 # Globals used by filter
@@ -270,8 +270,8 @@ def g:InitFuzzyFind(values: list<string>, options: dict<any>)
 enddef
 
 # Command functions
-export def Find()
-    g:InitFuzzyFind(systemlist(BuildFindCommand()), { title: GetCurrentDirectory() .. '/' })
+export def Find(directory = '.')
+    g:InitFuzzyFind(systemlist(BuildFindCommand(directory)), { title: GetCurrentDirectory() .. '/' })
 enddef
 
 export def GitFiles()
