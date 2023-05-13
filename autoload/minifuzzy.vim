@@ -1,14 +1,14 @@
 vim9script
 
 # Exec callbacks
-const EditArg = (arg: string): string =>  execute("edit " .. arg)
-const SplitArg = (arg: string): string =>  execute("split " .. arg)
-const VsplitArg = (arg: string): string =>  execute("vsplit " .. arg )
-const EchoArg = (arg: string): string =>  execute("echo " .. string(arg), "")
-const GitCheckoutArg = (arg: string): string => execute("Git checkout " .. arg)
-const GotoLineNumberArg = (arg: string): string => execute(":" .. arg)
-const SplitLineNumberArg = (arg: string): string => execute("sp | :" .. arg .. " | norm zz")
-const VsplitLineNumberArg = (arg: string): string => execute("vs | :" .. arg .. " | norm zz")
+const EditArg = (arg: string): string => execute($"edit {arg}")
+const SplitArg = (arg: string): string => execute($"split {arg}")
+const VsplitArg = (arg: string): string => execute($"vsplit {arg}")
+const EchoArg = (arg: string): string => execute($"echo {string(arg)}", "")
+const GitCheckoutArg = (arg: string): string => execute($"Git checkout {arg}")
+const GotoLineNumberArg = (arg: string): string => execute($":{arg}")
+const SplitLineNumberArg = (arg: string): string => execute($"sp | :{arg} | norm zz")
+const VsplitLineNumberArg = (arg: string): string => execute($"vs | :{arg} | norm zz")
 
 # Format callbacks
 const DefaultFormatArg = (arg: string): string => arg
@@ -17,23 +17,9 @@ const GetBufLineByNumber = (arg: string): string => repeat(" ", len(string(line(
 # Cancel callbacks
 const DefaultCancel = () => null
 
-# Builds a Unix find command that ignores directories present in the
-# "ignore_directories" list
-const ignore_directories = [ 'node_modules', '.git' ]
-def BuildFindCommand(directory: string): string
-    if (executable('git') && isdirectory('./.git'))
-        return "git ls-files -co --exclude-standard"
-    endif
-    var cmd_exprs = ignore_directories->mapnew((_, dir) => '-type d -name ' .. dir .. ' -prune')
-    cmd_exprs->add('-type f -print')
-    return $"find {fnameescape(expand(directory))} {cmd_exprs->join(' -o ')}"
-enddef
-# g:TestFindCommand = BuildFindCommand
-
 # Globals used by filter
 var search_string = ""
 var output_list = []
-var use_arg_command = ""
 var max_option_length = 0
 var On_enter_callback: func(string): string
 var On_ctrl_x_callback: func(string): string
@@ -41,6 +27,8 @@ var On_ctrl_v_callback: func(string): string
 var On_cancel_callback: func
 var Format_callback: func(string): string
 var selection_index = 0
+var scroll_offset = 0
+var results_to_display = 0
 
 # Character Code Strings
 const bs_cc_str = "12825396" # Backspace
@@ -49,10 +37,13 @@ const down_cc_str = "128107100" # Arrow key down
 
 # Important character codes
 const char_code = {
-    ctrl_p: 16,
-    ctrl_v: 22,
-    ctrl_x: 24,
     enter: 13,
+    ctrl_n: 14,
+    ctrl_p: 16,
+    ctrl_u: 21,
+    ctrl_v: 22,
+    ctrl_w: 23,
+    ctrl_x: 24,
 }
 
 def FilterCallback(winid: number, key: string): bool
@@ -90,17 +81,8 @@ def FilterCallback(winid: number, key: string): bool
     enddef
 
     # Determins if this key press is an arrow key
-    def IsKeyArrow(): bool
-        return cc_str == up_cc_str || cc_str == down_cc_str
-    enddef
-
-    def Clamp(x: number, low: number, high: number): number
-        if x < low
-            return low
-        elseif x > high
-            return high
-        endif
-        return x
+    def KeyControlsSelection(): bool
+        return cc_str == up_cc_str || cc_str == down_cc_str || key_code == char_code.ctrl_p || key_code == char_code.ctrl_n
     enddef
 
     # The search_string gets matched against Format_callback(output_list[i]),
@@ -109,8 +91,6 @@ def FilterCallback(winid: number, key: string): bool
     # For example, MinifuzzyLines sets output_list to the range(1, line("$")), but
     # the Format_callback is set to return the line contents at the line
     # number.
-
-
 
     # Select best match and exit close window
     # <CR>, <C-V>, <C-X>
@@ -132,27 +112,23 @@ def FilterCallback(winid: number, key: string): bool
     endif
 
 
-    if IsKeyArrow()
+    if KeyControlsSelection()
         # For arrow key presses, update the matches list first and then 
         # do stuff
         UpdateMatches(search_string)
-        if cc_str == up_cc_str # Arrow up
+        if cc_str == up_cc_str || key_code == char_code.ctrl_p # Arrow up
             UpdateMatches(search_string)
-            selection_index -= 1
-            if selection_index < 0
-                selection_index = 0
-            endif
-            # should_skip = true
-        elseif cc_str == down_cc_str # Arrow down
-            selection_index += 1
+            selection_index = max([selection_index - 1, 0])
+        elseif cc_str == down_cc_str || key_code == char_code.ctrl_n # Arrow down
             var len_count = search_string == "" ? len(output_list) : len(matches)
-            if selection_index >= len_count
-                selection_index = len_count - 1
-            endif
+            selection_index = min([selection_index + 1, len_count - 1])
+            # if (selection_index + 1) > results_to_display
+            #     scroll_offset += 1
+            # endif
         endif
     else
         # For everything else, do the stuff and then update the matches list
-        if char2nr(key) == char_code.ctrl_p # <C-p> Clear whole line
+        if char2nr(key) == char_code.ctrl_u # <C-u> Clear whole line
             search_string = ""
         elseif bs_pressed # <BS> Remove last letter
             search_string = substitute(search_string, ".$", "", "")
@@ -160,20 +136,20 @@ def FilterCallback(winid: number, key: string): bool
             search_string ..= key
         endif
         selection_index = 0
+        scroll_offset = 0
         UpdateMatches(search_string)
     endif
 
-    #####################
-    # UpdatePopupBuffer()
-    #####################
+    # Update the buffer
+
     # Clear buffer
     for i in range(1, line("$", winid))
         setbufline(bufnr, i, "")
     endfor
 
     # Collect buffer lines
-    lines->add(search_string)
-    for m in display_matches
+    lines->add($'> {search_string}')
+    for m in display_matches[scroll_offset : ]
         lines->add(m)
     endfor
 
@@ -189,12 +165,6 @@ def FilterCallback(winid: number, key: string): bool
     })
 
     return true
-enddef
-
-# def BuffersList(): list<any>
-def BuffersList(): list<string>
-    # return range(1, bufnr('$'))->filter((_, val) => buflisted(val))->map((_, v) => ({ nr: v, name: bufname(v) }))
-    return range(1, bufnr('$'))->filter((_, val) => buflisted(val) && bufnr() != val)->map((_, v) => bufname(v) )
 enddef
 
 def GetMRU(limit: number): list<string>
@@ -228,6 +198,7 @@ const fuzzy_find_default_options = {
     format_cb: DefaultFormatArg, # format_cb(val) is what gets displayed in the prompt
     title: 'Minifuzzy',          # Title for the popup window
     filetype: '',                # If non-empty, use filetype syntax highlight in window
+    results_to_display: 20,      # Number of lines for showing values
 }
 def g:InitFuzzyFind(values: list<string>, options: dict<any>)
     # Skip on empty values, may be an issue with async
@@ -248,6 +219,8 @@ def g:InitFuzzyFind(values: list<string>, options: dict<any>)
     Format_callback = opts.format_cb
     max_option_length = max(output_list->mapnew((_, v) => len(Format_callback(v))))
     selection_index = 0
+    scroll_offset = 0
+    results_to_display = opts.results_to_display
 
     # Create popup window
     const popup_opts = {
@@ -255,15 +228,14 @@ def g:InitFuzzyFind(values: list<string>, options: dict<any>)
         mapping: 0, 
         filtermode: 'a',
         minwidth: max_option_length,
-        maxheight: 20,
+        maxheight: results_to_display + 1,
         border: [],
-        # title: ' ' .. GetCurrentDirectory() .. '/ '
-        title: ' ' .. opts.title .. ' ',
+        title: $' {opts.title} ',
     }
-    var popup_id = popup_create([""] + output_list->mapnew((_, v) => Format_callback(v)), popup_opts)
+    const popup_id = popup_create(['> '] + output_list->mapnew((_, v) => Format_callback(v)), popup_opts)
 
     # Add syntax highlighting if requested
-    var bufnr = winbufnr(popup_id)
+    const bufnr = winbufnr(popup_id)
     if opts.filetype->len() > 0
         setbufvar(bufnr, '&filetype', opts.filetype)
     endif
@@ -277,20 +249,22 @@ def g:InitFuzzyFind(values: list<string>, options: dict<any>)
 enddef
 
 # Command functions
-export def Find(directory = '.')
-    g:InitFuzzyFind(systemlist(BuildFindCommand(directory)), { title: GetCurrentDirectory() .. '/' })
+export def Find(directory: string)
+    var root = directory == '' ? '.' : directory
+    const files = expand($'{root}/**/*', false, true)->filter((_, v) => !isdirectory(v))
+    g:InitFuzzyFind(files, { title: $'{GetCurrentDirectory()}/' })
 enddef
 
 export def GitFiles()
-    g:InitFuzzyFind(systemlist('git ls-files'), { title: "GIT: " .. GetCurrentDirectory() .. '/' })
+    g:InitFuzzyFind(systemlist('git ls-files'), { title: $'GIT: {GetCurrentDirectory()}/' })
 enddef
 
 export def Buffers()
-    g:InitFuzzyFind(range(1, bufnr('$'))->filter((_, val) => buflisted(val) && bufnr() != val)->map((_, v) => string(v)), {
-        format_cb: (s) => bufname(str2nr(s)), 
-        exec_cb: (s) => execute("buffer " .. s),
-        ctrl_x_cb: (s) => execute("sp | buffer " .. s),
-        ctrl_v_cb: (s) => execute("vs | buffer " .. s),
+    const buffers = getcompletion('', 'buffer')->filter((_, val) => bufnr(val) != bufnr())
+    g:InitFuzzyFind(buffers, {
+        exec_cb: (s) => execute($"buffer {s}"),
+        ctrl_x_cb: (s) => execute($"sp | buffer {s}"),
+        ctrl_v_cb: (s) => execute($"vs | buffer {s}"),
         title: 'Buffers' })
 enddef
 
@@ -305,7 +279,7 @@ export def Lines()
         ctrl_v_cb: VsplitLineNumberArg,
         format_cb: GetBufLineByNumber,
         filetype: &filetype,
-        title: 'Lines: ' .. expand("%") })
+        title: $'Lines: {expand("%:t")}' })
 enddef
 
 export def GitBranch()
