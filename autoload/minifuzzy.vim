@@ -14,6 +14,8 @@ const VsplitLineNumberArg = (arg: string): string => execute("vs | :" .. arg .. 
 const DefaultFormatArg = (arg: string): string => arg
 const GetBufLineByNumber = (arg: string): string => repeat(" ", len(string(line('$'))) - len(arg)) .. arg .. " " .. (len(getbufline(bufname(), str2nr(arg))) > 0 ? getbufline(bufname(), str2nr(arg))[0] : "")
 
+# Cancel callbacks
+const DefaultCancel = () => null
 
 # Builds a Unix find command that ignores directories present in the
 # "ignore_directories" list
@@ -24,8 +26,9 @@ def BuildFindCommand(directory: string): string
     endif
     var cmd_exprs = ignore_directories->mapnew((_, dir) => '-type d -name ' .. dir .. ' -prune')
     cmd_exprs->add('-type f -print')
-    return $"find {fnameescape(directory)} {cmd_exprs->join(' -o ')}"
+    return $"find {fnameescape(expand(directory))} {cmd_exprs->join(' -o ')}"
 enddef
+# g:TestFindCommand = BuildFindCommand
 
 # Globals used by filter
 var search_string = ""
@@ -35,6 +38,7 @@ var max_option_length = 0
 var On_enter_callback: func(string): string
 var On_ctrl_x_callback: func(string): string
 var On_ctrl_v_callback: func(string): string
+var On_cancel_callback: func
 var Format_callback: func(string): string
 var selection_index = 0
 
@@ -60,6 +64,7 @@ def FilterCallback(winid: number, key: string): bool
     endif
     if key == "\<Esc>"
         popup_close(winid)
+        On_cancel_callback()
         return true
     endif
 
@@ -219,6 +224,7 @@ const fuzzy_find_default_options = {
     exec_cb: EditArg,            # <CR> callback, exec_cb(val) is executed
     ctrl_x_cb: SplitArg,         # <C-X> Callback, ctrl_x_cb(val) is executed
     ctrl_v_cb: VsplitArg,        # <C-V> Callback, ctrl_v_cb(val) is executed
+    cancel_cb: DefaultCancel,    # <Esc> Callback, cancel_cb() is executed
     format_cb: DefaultFormatArg, # format_cb(val) is what gets displayed in the prompt
     title: 'Minifuzzy',          # Title for the popup window
     filetype: '',                # If non-empty, use filetype syntax highlight in window
@@ -238,6 +244,7 @@ def g:InitFuzzyFind(values: list<string>, options: dict<any>)
     On_enter_callback = opts.exec_cb
     On_ctrl_x_callback = opts.ctrl_x_cb
     On_ctrl_v_callback = opts.ctrl_v_cb
+    On_cancel_callback = opts.cancel_cb
     Format_callback = opts.format_cb
     max_option_length = max(output_list->mapnew((_, v) => len(Format_callback(v))))
     selection_index = 0
@@ -308,7 +315,7 @@ enddef
 
 g:old_cmd_line = ''
 export def Command()
-    var Exec_cb = (s: string): string => {
+    const Exec_cb = (s: string): string => {
         var list = g:old_cmd_line->split(' ')
         if list->len() == 0
             list = ['']
@@ -324,5 +331,14 @@ export def Command()
         feedkeys($":{final_cmd}")
         return ''
     }
-    g:InitFuzzyFind(getcompletion(g:old_cmd_line, 'cmdline'), { exec_cb: Exec_cb, filetype: 'vim' })
+    const Cancel_cb = () => {
+        feedkeys($":{g:old_cmd_line}")
+    }
+    const values = getcompletion(g:old_cmd_line, 'cmdline')
+
+    g:InitFuzzyFind(values->len() == 0 ? [''] : values, { 
+        exec_cb: Exec_cb,
+        cancel_cb: Cancel_cb,
+        filetype: 'vim',
+    })
 enddef
