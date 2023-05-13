@@ -1,5 +1,7 @@
 vim9script
 
+import './utils.vim'
+
 # Exec callbacks
 const EditArg = (arg: string): string => execute($"edit {arg}")
 const SplitArg = (arg: string): string => execute($"split {arg}")
@@ -167,27 +169,6 @@ def FilterCallback(winid: number, key: string): bool
     return true
 enddef
 
-def GetMRU(limit: number): list<string>
-    final recently_used: list<string> = []
-    var found = 0
-    for path in v:oldfiles
-        if found >= limit
-            break
-        endif
-        if match(path, "^/usr/share") < 0 && filereadable(expand(path))
-            add(recently_used, path)
-            found += 1
-        endif 
-    endfor
-    return recently_used
-enddef
-
-# Returns just the cwd last directory name
-# i.e. a/b/c => c
-def GetCurrentDirectory(): string
-    return getcwd()[strridx(getcwd(), '/') + 1 : ]
-enddef
-
 # Initialize a fuzzy find prompt.
 # - "values" -> List of values to search against
 const fuzzy_find_default_options = {
@@ -252,11 +233,11 @@ enddef
 export def Find(directory: string)
     var root = directory == '' ? '.' : directory
     const files = expand($'{root}/**/*', false, true)->filter((_, v) => !isdirectory(v))
-    g:InitFuzzyFind(files, { title: $'{GetCurrentDirectory()}/' })
+    g:InitFuzzyFind(files, { title: $'{utils.GetCurrentDirectory()}/' })
 enddef
 
 export def GitFiles()
-    g:InitFuzzyFind(systemlist('git ls-files'), { title: $'GIT: {GetCurrentDirectory()}/' })
+    g:InitFuzzyFind(systemlist('git ls-files'), { title: $'GIT: {utils.GetCurrentDirectory()}/' })
 enddef
 
 export def Buffers()
@@ -269,7 +250,7 @@ export def Buffers()
 enddef
 
 export def MRU()
-    g:InitFuzzyFind(GetMRU(10), { title: 'MRU' })
+    g:InitFuzzyFind(utils.GetMRU(10), { title: 'MRU' })
 enddef
 
 export def Lines()
