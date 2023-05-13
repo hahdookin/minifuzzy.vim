@@ -8,7 +8,7 @@ const SplitArg = (arg: string): string => execute($"split {arg}")
 const VsplitArg = (arg: string): string => execute($"vsplit {arg}")
 const EchoArg = (arg: string): string => execute($"echo {string(arg)}", "")
 const GitCheckoutArg = (arg: string): string => execute($"Git checkout {arg}")
-const GotoLineNumberArg = (arg: string): string => execute($":{arg}")
+const GotoLineNumberArg = (arg: string): string => execute($":{arg} | norm zz")
 const SplitLineNumberArg = (arg: string): string => execute($"sp | :{arg} | norm zz")
 const VsplitLineNumberArg = (arg: string): string => execute($"vs | :{arg} | norm zz")
 
@@ -121,12 +121,15 @@ def FilterCallback(winid: number, key: string): bool
         if cc_str == up_cc_str || key_code == char_code.ctrl_p # Arrow up
             UpdateMatches(search_string)
             selection_index = max([selection_index - 1, 0])
+            if selection_index < scroll_offset
+                scroll_offset -= 1
+            endif
         elseif cc_str == down_cc_str || key_code == char_code.ctrl_n # Arrow down
             var len_count = search_string == "" ? len(output_list) : len(matches)
             selection_index = min([selection_index + 1, len_count - 1])
-            # if (selection_index + 1) > results_to_display
-            #     scroll_offset += 1
-            # endif
+            if (selection_index + 1) > results_to_display
+                scroll_offset += 1
+            endif
         endif
     else
         # For everything else, do the stuff and then update the matches list
@@ -160,7 +163,7 @@ def FilterCallback(winid: number, key: string): bool
         setbufline(bufnr, i + 1, lines[i])
     endfor
 
-    prop_add(selection_index + 2, 1, { 
+    prop_add(selection_index + 2 - scroll_offset, 1, { 
         length: max_option_length, 
         type: 'match', 
         bufnr: bufnr 
