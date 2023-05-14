@@ -7,10 +7,9 @@ const EditArg = (arg: string): string => execute($"edit {arg}")
 const SplitArg = (arg: string): string => execute($"split {arg}")
 const VsplitArg = (arg: string): string => execute($"vsplit {arg}")
 const EchoArg = (arg: string): string => execute($"echo {string(arg)}", "")
-const GitCheckoutArg = (arg: string): string => execute($"Git checkout {arg}")
-const GotoLineNumberArg = (arg: string): string => execute($":{arg} | norm zz")
-const SplitLineNumberArg = (arg: string): string => execute($"sp | :{arg} | norm zz")
-const VsplitLineNumberArg = (arg: string): string => execute($"vs | :{arg} | norm zz")
+const GotoLineNumberArg = (arg: string): string => execute($"exec 'normal m`' | :{arg} | norm zz")
+const SplitLineNumberArg = (arg: string): string => execute($"exec 'normal m`' | sp | :{arg} | norm zz")
+const VsplitLineNumberArg = (arg: string): string => execute($"exec 'normal m`' | vs | :{arg} | norm zz")
 
 # Format callbacks
 const DefaultFormatArg = (arg: string): string => arg
@@ -34,8 +33,6 @@ var results_to_display = 0
 
 # Character Code Strings
 const bs_cc_str = "12825396" # Backspace
-const up_cc_str = "128107117" # Arrow key up
-const down_cc_str = "128107100" # Arrow key down
 
 # Important character codes
 const char_code = {
@@ -49,8 +46,6 @@ const char_code = {
 }
 
 def FilterCallback(winid: number, key: string): bool
-    var bs_pressed = len(key) == 3 && key[1] == 'k' && key[2] == 'b'
-    const key_code = char2nr(key)
     const cc_str = key->mapnew((_, v) => string(char2nr(v)))
     if cc_str == bs_cc_str # <BS> is constantly fed, seems like a bug
         return false
@@ -65,7 +60,7 @@ def FilterCallback(winid: number, key: string): bool
     var matches = []
     var display_matches = []
 
-    var lines = []
+    final lines = []
 
     # Helper functions
     # Updates the matches list and display matches based on the search_string
@@ -84,7 +79,7 @@ def FilterCallback(winid: number, key: string): bool
 
     # Determins if this key press is an arrow key
     def KeyControlsSelection(): bool
-        return cc_str == up_cc_str || cc_str == down_cc_str || key_code == char_code.ctrl_p || key_code == char_code.ctrl_n
+        return key == "\<Up>" || key == "\<Down>" || key == "\<C-p>" || key == "\<C-n>"
     enddef
 
     # The search_string gets matched against Format_callback(output_list[i]),
@@ -96,15 +91,15 @@ def FilterCallback(winid: number, key: string): bool
 
     # Select best match and exit close window
     # <CR>, <C-V>, <C-X>
-    if key_code == char_code.enter || key_code == char_code.ctrl_x || key_code == char_code.ctrl_v # <Enter>
+    if key == "\<CR>" || key == "\<C-x>" || key == "\<C-v>" # <Enter>
         # No need to update display_matches, nothing will be displayed after
         # <CR> is pressed.
         UpdateMatches(search_string)
         popup_close(winid)
         if len(matches) > 0
-            if key_code == char_code.ctrl_x
+            if key == "\<C-x>"
                 On_ctrl_x_callback(matches[selection_index])
-            elseif key_code == char_code.ctrl_v
+            elseif key == "\<C-v>"
                 On_ctrl_v_callback(matches[selection_index])
             else
                 On_enter_callback(matches[selection_index])
@@ -118,13 +113,13 @@ def FilterCallback(winid: number, key: string): bool
         # For arrow key presses, update the matches list first and then 
         # do stuff
         UpdateMatches(search_string)
-        if cc_str == up_cc_str || key_code == char_code.ctrl_p # Arrow up
+        if key == "\<Up>" || key == "\<C-p>" # Arrow up
             UpdateMatches(search_string)
             selection_index = max([selection_index - 1, 0])
             if selection_index < scroll_offset
                 scroll_offset -= 1
             endif
-        elseif cc_str == down_cc_str || key_code == char_code.ctrl_n # Arrow down
+        elseif key == "\<Down>" || key == "\<C-n>" # Arrow down
             var len_count = search_string == "" ? len(output_list) : len(matches)
             selection_index = min([selection_index + 1, len_count - 1])
             if (selection_index + 1) > results_to_display
@@ -133,9 +128,9 @@ def FilterCallback(winid: number, key: string): bool
         endif
     else
         # For everything else, do the stuff and then update the matches list
-        if char2nr(key) == char_code.ctrl_u # <C-u> Clear whole line
+        if key == "\<C-u>" # <C-u> Clear whole line
             search_string = ""
-        elseif bs_pressed # <BS> Remove last letter
+        elseif key == "\<BS>" # <BS> Remove last letter
             search_string = substitute(search_string, ".$", "", "")
         else # any other key
             search_string ..= key
@@ -163,6 +158,7 @@ def FilterCallback(winid: number, key: string): bool
         setbufline(bufnr, i + 1, lines[i])
     endfor
 
+    # Add the highlight line
     prop_add(selection_index + 2 - scroll_offset, 1, { 
         length: max_option_length, 
         type: 'match', 
@@ -175,11 +171,11 @@ enddef
 # Initialize a fuzzy find prompt.
 # - "values" -> List of values to search against
 const fuzzy_find_default_options = {
+    format_cb: DefaultFormatArg, # format_cb(val) is what gets displayed in the prompt
     exec_cb: EditArg,            # <CR> callback, exec_cb(val) is executed
     ctrl_x_cb: SplitArg,         # <C-X> Callback, ctrl_x_cb(val) is executed
     ctrl_v_cb: VsplitArg,        # <C-V> Callback, ctrl_v_cb(val) is executed
     cancel_cb: DefaultCancel,    # <Esc> Callback, cancel_cb() is executed
-    format_cb: DefaultFormatArg, # format_cb(val) is what gets displayed in the prompt
     title: 'Minifuzzy',          # Title for the popup window
     filetype: '',                # If non-empty, use filetype syntax highlight in window
     results_to_display: 20,      # Number of lines for showing values
@@ -264,11 +260,6 @@ export def Lines()
         format_cb: GetBufLineByNumber,
         filetype: &filetype,
         title: $'Lines: {expand("%:t")}' })
-enddef
-
-export def GitBranch()
-    g:InitFuzzyFind(systemlist("git branch --format='%(refname:short)'"), {
-        exec_cb: GitCheckoutArg })
 enddef
 
 g:old_cmd_line = ''
