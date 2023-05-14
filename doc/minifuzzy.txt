@@ -35,21 +35,24 @@ finding mechanism.
 2.1. Quickstart                                  *MinifuzzyQuickstart*
 
 To begin using minifuzzy.vim, press <leader>ff to fuzzy find in the
-current working directory. minifuzzy.vim will open a popup window
+current working directory |pwd|. minifuzzy.vim will open a popup window
 for fuzzy finding. Press <ESC> to close this window.
 
 Begin typing to narrow the selection down to what you want. Your
 current selection will be highlighted. Pressing <CR> will select
 the currently highlighted file and open it.
 
-Pressing <C-p> will clear the search query but not close the window.
+Pressing <C-u> will clear the search query but not close the window.
+
+To select the next or previous best options, use <C-n> or <C-p>.
+Arrow keys also work.
 
 --------------------------------------------------------------------
 2.2. Mappings                                      *MinifuzzyMappings*
 
 The following mappings can be used to initiate a fuzzy find:
 
-    <leader>ff ............. Files in current working directory
+    <leader>ff or <C-p> .... Files in current working directory
     <leader>fb ............. Buffers
     <leader>fm ............. Most recently used files
     <leader>fl ............. Lines in the current buffer
@@ -60,8 +63,10 @@ While the minifuzzy.vim window is open:
     <CR> ............. Select the currently highlighted selection
     <C-x> ............ Select the currently highlighted selection
     <C-v> ............ Select the currently highlighted selection
-    <C-p> ............ Clear the search query
+    <C-u> ............ Clear the search query
     <ESC> ............ Close the minifuzzy.vim window
+    <C-p> or <Up> .... Put the cursor over the previous option
+    <C-n> or <Down> .. Put the cursor over the next option
 
 If in command mode and either <C-Tab> or <C-b> is pressed, a fuzzy
 finder prompt will be created to complete (and replace) the current
@@ -123,12 +128,14 @@ has the following signature in Vim9 script:
 Where |values| are the possible values to search against and |options|
 can contain the following keys:
 >
-    format_cb: func(string): string
-    exec_cb:   func(string): string
-    ctrl_x_cb: func(string): string
-    ctrl_v_cb: func(string): string
-    title:     string
-    filetype:  string
+    format_cb:          func(string): string
+    exec_cb:            func(string): string
+    ctrl_x_cb:          func(string): string
+    ctrl_v_cb:          func(string): string
+    cancel_cb:          func
+    title:              string
+    filetype:           string
+    results_to_display: number
 <
 |format_cb| gets called on each value in |values| and displays the
 return value in the miniterm.vim window.
@@ -141,19 +148,25 @@ selected value passed as the only argument. Two additional execution
 callbacks |ctrl_x_cb| and |ctrl_v_cb| can be called when <C-x> or 
 <C-v> are pressed, respectively.
 
+Additionally, if needed, |cancel_cb| will be called after <Esc> is
+pressed and the window is closed.
+
 |title| will be used as the title for the popup window. If |filetype|
 if provided and not an empty string, the |filetype| will be applied
 to the popup window, to allow syntax highlighting and such.
 
+|results_to_display| denotes how many lines in the popup window are
+dedicated to showing results before scrolling is required.
+
 Example:                                     *MinifuzzyCustomExamples*
 >
-    com! MyCustomFuzzy call InitFuzzyFind(['a', 'b'], {
+    com! MyCustomFuzzy call minifuzzy#InitFuzzyFind(['a', 'b'], {
 	\ 'exec_cb': {s -> execute('edit ' . s)} })
 <
 This command will call |:edit| on the selected value from ['a', 'b'].
 >
     let bufnrs = getbufinfo()->map('string(v:val.bufnr)')
-    com! FuzBufs call InitFuzzyFind(bufnrs, {
+    com! FuzBufs call minifuzzy#InitFuzzyFind(bufnrs, {
 	\ 'format_cb': {s -> bufname(s)},
 	\ 'exec_cb': {bn -> execute('echo ' . bn)} })
 <
@@ -165,7 +178,7 @@ number passed to |:echo|.
 Here is an example using |vim9|.
 >
     com! FuzzyColors {
-	InitFuzzyFind(getcompletion('', 'color'), {
+	minifuzzy#InitFuzzyFind(getcompletion('', 'color'), {
 	    exec_cb: (cs) => execute($'colorscheme {cs}')
 	})
     }
