@@ -1,22 +1,7 @@
 vim9script
 
 import './utils.vim'
-
-# Exec callbacks
-const EditArg = (arg: string): string => execute($"edit {arg}")
-const SplitArg = (arg: string): string => execute($"split {arg}")
-const VsplitArg = (arg: string): string => execute($"vsplit {arg}")
-const EchoArg = (arg: string): string => execute($"echo {string(arg)}", "")
-const GotoLineNumberArg = (arg: string): string => execute($"exec 'normal m`' | :{arg} | norm zz")
-const SplitLineNumberArg = (arg: string): string => execute($"exec 'normal m`' | sp | :{arg} | norm zz")
-const VsplitLineNumberArg = (arg: string): string => execute($"exec 'normal m`' | vs | :{arg} | norm zz")
-
-# Format callbacks
-const DefaultFormatArg = (arg: string): string => arg
-const GetBufLineByNumber = (arg: string): string => repeat(" ", len(string(line('$'))) - len(arg)) .. arg .. " " .. (len(getbufline(bufname(), str2nr(arg))) > 0 ? getbufline(bufname(), str2nr(arg))[0] : "")
-
-# Cancel callbacks
-const DefaultCancel = () => null
+import './callbacks.vim'
 
 # Globals used by filter
 var search_string = ""
@@ -171,16 +156,16 @@ enddef
 # Initialize a fuzzy find prompt.
 # - "values" -> List of values to search against
 const fuzzy_find_default_options = {
-    format_cb: DefaultFormatArg, # format_cb(val) is what gets displayed in the prompt
-    exec_cb: EditArg,            # <CR> callback, exec_cb(val) is executed
-    ctrl_x_cb: SplitArg,         # <C-X> Callback, ctrl_x_cb(val) is executed
-    ctrl_v_cb: VsplitArg,        # <C-V> Callback, ctrl_v_cb(val) is executed
-    cancel_cb: DefaultCancel,    # <Esc> Callback, cancel_cb() is executed
-    title: 'Minifuzzy',          # Title for the popup window
-    filetype: '',                # If non-empty, use filetype syntax highlight in window
-    results_to_display: 20,      # Number of lines for showing values
+    format_cb: callbacks.DefaultFormatArg, # format_cb(val) is what gets displayed in the prompt
+    exec_cb: callbacks.EditArg,            # <CR> callback, exec_cb(val) is executed
+    ctrl_x_cb: callbacks.SplitArg,         # <C-X> Callback, ctrl_x_cb(val) is executed
+    ctrl_v_cb: callbacks.VsplitArg,        # <C-V> Callback, ctrl_v_cb(val) is executed
+    cancel_cb: callbacks.DefaultCancel,    # <Esc> Callback, cancel_cb() is executed
+    title: 'Minifuzzy',                    # Title for the popup window
+    filetype: '',                          # If non-empty, use filetype syntax highlight in window
+    results_to_display: 20,                # Number of lines for showing values
 }
-def g:InitFuzzyFind(values: list<string>, options: dict<any>)
+export def InitFuzzyFind(values: list<string>, options: dict<any>)
     # Skip on empty values, may be an issue with async
     if len(values) == 0
         return
@@ -226,68 +211,4 @@ def g:InitFuzzyFind(values: list<string>, options: dict<any>)
         highlight: 'Search',
     })
     prop_add(2, 1, { length: max_option_length, type: 'match', bufnr: bufnr })
-enddef
-
-# Command functions
-export def Find(directory: string)
-    var root = directory == '' ? '.' : directory
-    const files = expand($'{root}/**/*', false, true)->filter((_, v) => !isdirectory(v))
-    g:InitFuzzyFind(files, { title: $'{utils.GetCurrentDirectory()}/' })
-enddef
-
-export def GitFiles()
-    g:InitFuzzyFind(systemlist('git ls-files'), { title: $'GIT: {utils.GetCurrentDirectory()}/' })
-enddef
-
-export def Buffers()
-    const buffers = getcompletion('', 'buffer')->filter((_, val) => bufnr(val) != bufnr())
-    g:InitFuzzyFind(buffers, {
-        exec_cb: (s) => execute($"buffer {s}"),
-        ctrl_x_cb: (s) => execute($"sp | buffer {s}"),
-        ctrl_v_cb: (s) => execute($"vs | buffer {s}"),
-        title: 'Buffers' })
-enddef
-
-export def MRU()
-    g:InitFuzzyFind(utils.GetMRU(10), { title: 'MRU' })
-enddef
-
-export def Lines()
-    g:InitFuzzyFind(range(1, line('$'))->map((_, v) => string(v)), {
-        exec_cb: GotoLineNumberArg, 
-        ctrl_x_cb: SplitLineNumberArg,
-        ctrl_v_cb: VsplitLineNumberArg,
-        format_cb: GetBufLineByNumber,
-        filetype: &filetype,
-        title: $'Lines: {expand("%:t")}' })
-enddef
-
-g:old_cmd_line = ''
-export def Command()
-    const Exec_cb = (s: string): string => {
-        var list = g:old_cmd_line->split(' ')
-        if list->len() == 0
-            list = ['']
-        endif
-        var last_index = g:old_cmd_line->len() - 1
-        if g:old_cmd_line[last_index] == ' '
-            list->add(s)
-        else
-            list[-1] = s
-        endif
-        echomsg $"[{g:old_cmd_line}]"
-        var final_cmd = list->join(" ")
-        feedkeys($":{final_cmd}")
-        return ''
-    }
-    const Cancel_cb = () => {
-        feedkeys($":{g:old_cmd_line}")
-    }
-    const values = getcompletion(g:old_cmd_line, 'cmdline')
-
-    g:InitFuzzyFind(values->len() == 0 ? [''] : values, { 
-        exec_cb: Exec_cb,
-        cancel_cb: Cancel_cb,
-        filetype: 'vim',
-    })
 enddef
