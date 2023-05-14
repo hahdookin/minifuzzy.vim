@@ -16,23 +16,12 @@ var selection_index = 0
 var scroll_offset = 0
 var results_to_display = 0
 
-# Character Code Strings
-const bs_cc_str = "12825396" # Backspace
-
-# Important character codes
-const char_code = {
-    enter: 13,
-    ctrl_n: 14,
-    ctrl_p: 16,
-    ctrl_u: 21,
-    ctrl_v: 22,
-    ctrl_w: 23,
-    ctrl_x: 24,
-}
+# When nothing is being pressed, this key is sent the FilterCallback
+# every second or so. We want to ignore this specifically.
+const key_constantly_fed_in = [128, 253, 96]
 
 def FilterCallback(winid: number, key: string): bool
-    const cc_str = key->mapnew((_, v) => string(char2nr(v)))
-    if cc_str == bs_cc_str # <BS> is constantly fed, seems like a bug
+    if str2list(key) == key_constantly_fed_in
         return false
     endif
     if key == "\<Esc>"
@@ -99,7 +88,6 @@ def FilterCallback(winid: number, key: string): bool
         # do stuff
         UpdateMatches(search_string)
         if key == "\<Up>" || key == "\<C-p>" # Arrow up
-            UpdateMatches(search_string)
             selection_index = max([selection_index - 1, 0])
             if selection_index < scroll_offset
                 scroll_offset -= 1
@@ -107,7 +95,7 @@ def FilterCallback(winid: number, key: string): bool
         elseif key == "\<Down>" || key == "\<C-n>" # Arrow down
             var len_count = search_string == "" ? len(output_list) : len(matches)
             selection_index = min([selection_index + 1, len_count - 1])
-            if (selection_index + 1) > results_to_display
+            if selection_index == results_to_display + scroll_offset
                 scroll_offset += 1
             endif
         endif
@@ -201,9 +189,7 @@ export def InitFuzzyFind(values: list<string>, options: dict<any>)
 
     # Add syntax highlighting if requested
     const bufnr = winbufnr(popup_id)
-    if opts.filetype->len() > 0
-        setbufvar(bufnr, '&filetype', opts.filetype)
-    endif
+    setbufvar(bufnr, '&filetype', opts.filetype)
 
     # Add highlight line text prop
     prop_type_add('match', {

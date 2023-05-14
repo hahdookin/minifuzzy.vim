@@ -1,3 +1,7 @@
+if !has('vim9script') || v:version < 802
+    finish
+endif
+
 vim9script
 
 import autoload "finders.vim"
