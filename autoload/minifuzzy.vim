@@ -183,6 +183,7 @@ export def InitFuzzyFind(values: list<string>, options: dict<any>)
         minwidth: max_option_length,
         maxheight: results_to_display + 1,
         border: [],
+        borderchars: ['─', '│', '─', '│', '╭', '╮', '╯', '╰'],
         title: $' {opts.title} ',
     }
     const popup_id = popup_create(['> '] + output_list->mapnew((_, v) => Format_callback(v)), popup_opts)
