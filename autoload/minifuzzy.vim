@@ -15,6 +15,8 @@ var Format_callback: func(string): string
 var selection_index = 0
 var scroll_offset = 0
 var results_to_display = 0
+var title = ''
+var total_results = 0
 
 # When nothing is being pressed, this key is sent the FilterCallback
 # every second or so. We want to ignore this specifically.
@@ -138,6 +140,12 @@ def FilterCallback(winid: number, key: string): bool
         bufnr: bufnr 
     })
 
+    const matches_count = matches->len()
+    const padding = repeat(" ", string(total_results)->len() - string(matches_count)->len())
+    popup_setoptions(winid, { 
+        title: $' {title} {padding}{matches_count}/{total_results} ' 
+    })
+
     return true
 enddef
 
@@ -174,6 +182,8 @@ export def InitFuzzyFind(values: list<string>, options: dict<any>)
     selection_index = 0
     scroll_offset = 0
     results_to_display = opts.results_to_display
+    title = opts.title
+    total_results = values->len()
 
     # Create popup window
     const popup_opts = {
@@ -184,7 +194,7 @@ export def InitFuzzyFind(values: list<string>, options: dict<any>)
         maxheight: results_to_display + 1,
         border: [],
         borderchars: ['─', '│', '─', '│', '╭', '╮', '╯', '╰'],
-        title: $' {opts.title} ',
+        title: $' {title} {total_results}/{total_results} ',
     }
     const popup_id = popup_create(['> '] + output_list->mapnew((_, v) => Format_callback(v)), popup_opts)
 
