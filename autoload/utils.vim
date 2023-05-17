@@ -20,3 +20,14 @@ enddef
 export def GetCurrentDirectory(): string
     return getcwd()[strridx(getcwd(), '/') + 1 : ]
 enddef
+
+export def BuildFindCommand(root: string): string
+    const ignores = &wildignore->split(",")
+    final ignore_dirs = ignores->copy()->filter((_, val) => stridx(val, '/') != -1)
+    final ignore_files = ignores->copy()->filter((_, val) => stridx(val, '/') == -1)
+    ignore_dirs->map((_, val) => $"-path '{val}'")
+    ignore_files->map((_, val) => $"-not -name '{val}'")
+    const dirs = ignore_dirs->join(" -o ")
+    const files = ignore_files->join()
+    return $'find {root} -type f -not \( {dirs} \) {files} -print'
+enddef

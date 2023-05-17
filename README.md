@@ -19,7 +19,4 @@ The following mappings can be used to fuzzy find:
 - `<leader>fm` -- Most recently used files
 - `<leader>fl` -- Lines in the current buffer
 
-## :memo: Rationale
-This plugin is part of a plugin suite designed to achieve the functionality of modern IDEs without external dependencies or bloat. Plugins in this suite are meant to be small, extensible, and powerful. 
-
 ---

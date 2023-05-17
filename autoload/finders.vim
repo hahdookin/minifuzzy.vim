@@ -17,7 +17,7 @@ enddef
 # Command functions
 export def Find(directory: string)
     const root = directory == '' ? '.' : directory
-    const files = expand($'{root}/**/*', false, true)->filter((_, v) => !isdirectory(v))
+    const files = systemlist(utils.BuildFindCommand(root))
     InitFuzzyFind(files, { title: $'{utils.GetCurrentDirectory()}/' })
 enddef
 
