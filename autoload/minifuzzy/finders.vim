@@ -1,7 +1,7 @@
 vim9script
 
 import './utils.vim'
-import './minifuzzy.vim'
+import '../minifuzzy.vim'
 import './callbacks.vim'
 
 const InitFuzzyFind = minifuzzy.InitFuzzyFind
@@ -40,15 +40,19 @@ export def Lines()
         title: $'Lines: {expand("%:t")}' })
 enddef
 
-g:old_cmd_line = ''
+export var old_cmd_line = ''
+export def StoreOldCmd(): string
+    old_cmd_line = getcmdline()
+    return ''
+enddef
 export def Command()
     const Exec_cb = (s: string): string => {
-        var list = g:old_cmd_line->split(' ')
+        var list = old_cmd_line->split(' ')
         if list->len() == 0
             list = ['']
         endif
-        const last_index = g:old_cmd_line->len() - 1
-        if g:old_cmd_line[last_index] == ' '
+        const last_index = old_cmd_line->len() - 1
+        if old_cmd_line[last_index] == ' '
             list->add(s)
         else
             list[-1] = s
@@ -58,9 +62,9 @@ export def Command()
         return ''
     }
     const Cancel_cb = () => {
-        feedkeys($":{g:old_cmd_line}")
+        feedkeys($":{old_cmd_line}")
     }
-    const values = getcompletion(g:old_cmd_line, 'cmdline')
+    const values = getcompletion(old_cmd_line, 'cmdline')
 
     InitFuzzyFind(values->len() == 0 ? [''] : values, { 
         exec_cb: Exec_cb,

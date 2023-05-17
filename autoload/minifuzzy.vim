@@ -1,7 +1,7 @@
 vim9script
 
-import './utils.vim'
-import './callbacks.vim'
+import './minifuzzy/utils.vim'
+import './minifuzzy/callbacks.vim'
 
 # Globals used by filter
 var search_string = ""
