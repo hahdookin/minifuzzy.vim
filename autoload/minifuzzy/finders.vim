@@ -40,12 +40,12 @@ export def Lines()
         title: $'Lines: {expand("%:t")}' })
 enddef
 
-export var old_cmd_line = ''
+var old_cmd_line = ''
 export def StoreOldCmd(): string
     old_cmd_line = getcmdline()
     return ''
 enddef
-export def Command()
+export def Command(ValueGenerator: func: list<string> = null_function)
     const Exec_cb = (s: string): string => {
         var list = old_cmd_line->split(' ')
         if list->len() == 0
@@ -64,7 +64,7 @@ export def Command()
     const Cancel_cb = () => {
         feedkeys($":{old_cmd_line}")
     }
-    const values = getcompletion(old_cmd_line, 'cmdline')
+    const values = ValueGenerator == null_function ? getcompletion(old_cmd_line, 'cmdline') : ValueGenerator()
 
     InitFuzzyFind(values->len() == 0 ? [''] : values, { 
         exec_cb: Exec_cb,

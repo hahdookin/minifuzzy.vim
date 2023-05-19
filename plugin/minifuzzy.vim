@@ -5,6 +5,7 @@ endif
 vim9script
 
 import autoload "../autoload/minifuzzy/finders.vim"
+import autoload "../autoload/minifuzzy/utils.vim"
 
 command! -nargs=* -complete=dir MinifuzzyFind finders.Find(<q-args>)
 command! MinifuzzyBuffers                     finders.Buffers()
