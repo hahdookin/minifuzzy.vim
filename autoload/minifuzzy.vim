@@ -5,6 +5,7 @@ import './minifuzzy/callbacks.vim'
 
 # Globals used by filter
 var search_string = ""
+var output_list_original = []
 var output_list = []
 var max_option_length = 0
 var On_enter_callback: func(string): string
@@ -40,17 +41,27 @@ def FilterCallback(winid: number, key: string): bool
 
     # Helper functions
     # Updates the matches list and display matches based on the search_string
-    def UpdateMatches(ss: string)
-        if search_string == ""
-            matches = output_list
-            display_matches = output_list->mapnew((_, v) => Format_callback(v))
-        else
-            const both_matches = output_list->mapnew((_, v) => ({ a: v, b: Format_callback(v) })) # ALL in { a: value, b: format(value) }
-            const matches_tuple = both_matches->matchfuzzy(search_string, { text_cb: (t) => t.b }) # Fuzzy matches of .b
-
-            matches = matches_tuple->mapnew((_, v) => v.a)
-            display_matches = matches_tuple->mapnew((_, v) => v.b)
+    def UpdateMatches(ss: string, backspace = false)
+        if backspace && search_string != ""
+            output_list = output_list_original
+            matches = output_list_original
+            display_matches = matches->mapnew((_, v) => Format_callback(v))
         endif
+
+        if search_string == ""
+            output_list = output_list_original
+            matches = output_list_original
+            display_matches = matches->mapnew((_, v) => Format_callback(v))
+        else
+            # output_list = output_list->matchfuzzy(search_string, { text_cb: (t) => Format_callback(t) })
+            const output_list_mapped = output_list->mapnew((_, val) => Format_callback(val))
+            # echo $"Matching against: {len(output_list_mapped)}/{len(output_list_original)}"
+            output_list = output_list_mapped->matchfuzzy(search_string)
+            # matches = matches->matchfuzzy(search_string, { text_cb: (t) => Format_callback(t) }) # Fuzzy matches of .b
+            matches = output_list # Fuzzy matches of .b
+            display_matches = output_list->mapnew((_, v) => Format_callback(v))
+        endif
+        # echo matches
     enddef
 
     # Determins if this key press is an arrow key
@@ -103,16 +114,18 @@ def FilterCallback(winid: number, key: string): bool
         endif
     else
         # For everything else, do the stuff and then update the matches list
+        var backspace = false
         if key == "\<C-u>" # <C-u> Clear whole line
             search_string = ""
         elseif key == "\<BS>" # <BS> Remove last letter
             search_string = substitute(search_string, ".$", "", "")
+            backspace = true
         else # any other key
             search_string ..= key
         endif
         selection_index = 0
         scroll_offset = 0
-        UpdateMatches(search_string)
+        UpdateMatches(search_string, backspace)
     endif
 
     # Update the buffer
@@ -173,6 +186,7 @@ export def InitFuzzyFind(values: list<string>, options: dict<any>)
     # Set globals...
     search_string = ""
     output_list = values
+    output_list_original = values
     On_enter_callback = opts.exec_cb
     On_ctrl_x_callback = opts.ctrl_x_cb
     On_ctrl_v_callback = opts.ctrl_v_cb
