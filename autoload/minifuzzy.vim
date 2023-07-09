@@ -19,6 +19,11 @@ var results_to_display = 0
 var title = ''
 var total_results = 0
 
+# Determins if this key press is an arrow key
+def KeyControlsSelection(key: string): bool
+    return key == "\<Up>" || key == "\<Down>" || key == "\<C-p>" || key == "\<C-n>"
+enddef
+
 # When nothing is being pressed, this key is sent the FilterCallback
 # every second or so. We want to ignore this specifically.
 const key_constantly_fed_in = [128, 253, 96]
@@ -64,11 +69,6 @@ def FilterCallback(winid: number, key: string): bool
         # echo matches
     enddef
 
-    # Determins if this key press is an arrow key
-    def KeyControlsSelection(): bool
-        return key == "\<Up>" || key == "\<Down>" || key == "\<C-p>" || key == "\<C-n>"
-    enddef
-
     # The search_string gets matched against Format_callback(output_list[i]),
     # not output_list[i]. However, once a value is selected, output_list[i] is
     # passed to the On_enter_callback as the argument.
@@ -96,7 +96,7 @@ def FilterCallback(winid: number, key: string): bool
     endif
 
 
-    if KeyControlsSelection()
+    if KeyControlsSelection(key)
         # For arrow key presses, update the matches list first and then 
         # do stuff
         UpdateMatches(search_string)
