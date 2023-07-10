@@ -5,8 +5,8 @@ import './minifuzzy/callbacks.vim'
 
 # Globals used by filter
 var search_string = ""
-var output_list_original = []
-var output_list = []
+var output_list_original: list<string> = []
+var output_list: list<string> = []
 var max_option_length = 0
 var On_enter_callback: func(string): string
 var On_ctrl_x_callback: func(string): string
@@ -39,34 +39,32 @@ def FilterCallback(winid: number, key: string): bool
     endif
 
     const bufnr = winbufnr(winid)
-    var matches = []
-    var display_matches = []
+    var matches: list<string> = []
+    var display_matches: list<string> = []
 
-    final lines = []
+    final lines: list<string> = []
 
     # Helper functions
     # Updates the matches list and display matches based on the search_string
     def UpdateMatches(ss: string, backspace = false)
-        if backspace && search_string != ""
+        if backspace && ss != ""
             output_list = output_list_original
             matches = output_list_original
             display_matches = matches->mapnew((_, v) => Format_callback(v))
         endif
 
-        if search_string == ""
+        if ss == ""
             output_list = output_list_original
             matches = output_list_original
             display_matches = matches->mapnew((_, v) => Format_callback(v))
         else
-            # output_list = output_list->matchfuzzy(search_string, { text_cb: (t) => Format_callback(t) })
-            const output_list_mapped = output_list->mapnew((_, val) => Format_callback(val))
-            # echo $"Matching against: {len(output_list_mapped)}/{len(output_list_original)}"
-            output_list = output_list_mapped->matchfuzzy(search_string)
-            # matches = matches->matchfuzzy(search_string, { text_cb: (t) => Format_callback(t) }) # Fuzzy matches of .b
+            const mapped = output_list->mapnew((_, val) => ({ a: val, b: Format_callback(val) }))
+            var both_matches = mapped->matchfuzzy(ss, { text_cb: (val) => val.b })
+            output_list = both_matches->mapnew((_, val) => val.a)
             matches = output_list # Fuzzy matches of .b
-            display_matches = output_list->mapnew((_, v) => Format_callback(v))
+            display_matches = both_matches->mapnew((_, val) => val.b)
         endif
-        # echo matches
+
     enddef
 
     # The search_string gets matched against Format_callback(output_list[i]),
