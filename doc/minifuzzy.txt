@@ -61,8 +61,8 @@ The following mappings can be used to initiate a fuzzy find:
 While the minifuzzy.vim window is open:
 
     <CR> ............. Select the currently highlighted selection
-    <C-x> ............ Select the currently highlighted selection
-    <C-v> ............ Select the currently highlighted selection
+    <C-x> ............ Same as above but opens in a split
+    <C-v> ............ Same as above but opens in a vertical split
     <C-u> ............ Clear the search query
     <ESC> ............ Close the minifuzzy.vim window
     <C-p> or <Up> .... Put the cursor over the previous option
